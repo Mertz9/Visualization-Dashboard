@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Datavisualization Dashboard V 1.4</title>
+
+
+	<style type="text/css" media="all">
+		.VAL {
+			position: absolute;
+			z-index: 1;
+		}
+
+		.SEL {
+			position: absolute;
+			z-index: 2;
+		}
+
+		myt {
+			font-family: Arial;
+			font-size: 14px;
+		}
+
+		p4 {
+			font-family: Arial;
+			font-size: 15px;
+		}
+
+		nav {
+			background-color: #C0ffC0;
+			display: block;
+			width: 300px;
+		}
+
+		nav ul {
+			padding: 0;
+			margin: 0;
+			list-style: none;
+			position: relative;
+		}
+
+		nav ul li {
+			width: 80px;
+			display: inline-block;
+			background-color: #000080;
+		}
+
+
+		nav a {
+			display: block;
+			padding: 0 10px;
+			color: #FF0;
+			font-size: 15px;
+			font-family: Arial;
+			font-weight: Bold;
+			line-height: 45px;
+			text-decoration: none;
+		}
+
+		nav a:hover {
+			background-color: rgba(255, 255, 255, 0.4);
+			color: #ff0000;
+		}
+	</style>
+
+	<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	<script>
+		var gyear = { gyear };// 0 = *
+		var gtopic = "{{gtopic}}";
+		var gsector = "{{gsector}}";
+		var gregion = "{{gregion}}";
+		var gpestle = "{{gpestle}}";
+		var gsource = "{{gsource}}";
+		var gswot = "{{gswot}}";
+		var gcountry = "{{gcountry}}";
+		var gcity = "{{gcity}}";
+		var gserial = { gserial }; // 0 = *
+
+
+
+		gsector = gsector.replaceAll('&amp;', '&');
+		gsource = gsource.replaceAll('&amp;', '&');
+
+		gsector = gsector.replaceAll('&#39;', "'");
+		gsource = gsource.replaceAll('&#39;', "'");
+
+
+
+		function display_selection(el_id, val) {
+			if (typeof (val) == 'string') // Text
+			{
+				if (val.length > 24)
+					val = val.slice(0, 24) + "...";
+			}
+			else // Number
+				if (val == 0)
+					val = "*";
+			window.document.getElementById(el_id + "_val").innerHTML = val;
+		}
+
+		function display_item(el_id, val) {
+			if (el_id == "serial")
+				val = gserial;
+			else if (el_id == "city")
+				val = gcity;
+			else if (el_id == "swot")
+				val = gswot;
+			else
+				val = jdata[find_id(gserial)][el_id];
+
+			if (typeof (val) == 'string') // Text
+			{
+				if (val.length > 24)
+					val = val.slice(0, 24) + "...";
+			}
+			else // Number
+				if (val == 0)
+					val = "*";
+			window.document.getElementById(el_id + "_val").innerHTML = val;
+		}
+
+		function select_item(el_id, val) {
+			opts = window.document.getElementById(el_id + "_id").children;
+			for (var i = 0; i < opts.length; i++) {
+				//console.log(opts[i].value);
+				if (opts[i].value == val)
+					opts[i].selected = "selected";
+			}
+			display_selection(el_id, val);
+		}
+
+		function hide_selections() {
+			opts = window.document.getElementsByTagName("select");
+			for (var i = 0; i < opts.length; i++)
+				opts[i].hidden = true;
+		}
+
+		function myfunc(el_id) {
+			hide_selections();
+			window.document.getElementById(el_id).hidden = false;
+		}
+		function myfunc2(el_id) {
+			window.document.getElementById(el_id).hidden = false;
+			document.forms.f2.submit();
+		}
+		function myfunc3() {
+			let i2 = window.document.getElementById("serial_id").value;
+			window.document.getElementById("serial_val").innerText = i2;
+			hee();
+		}
+		function hee() {
+			let t = window.document.getElementById("serial_id").value;
+			addUniqueOptions(serials, "serial_id");
+			console.log(t);
+			gserial = serials[t];
+			console.log(gserial);
+			if (gserial != 0) {
+				i = find_id(gserial);
+				console.log(i);
+				if (i != -1) {
+					data[0] = jdata[i].relevance;
+					data[1] = jdata[i].likelihood;
+					data[2] = jdata[i].intensity;
+					my_d3_plot(i);
+				}
+				else
+					console.log("Cannot find give serial id in data");
+			}
+		}
+		var jdata;
+		var data = [7, 4, 96];
+
+		function apply_filter(val, attr) {
+			if (((typeof (val) == "number") && (val != 0)) || ((typeof (val) == "string") && (val != "*"))) {
+				num = 0;
+				temp = jdata_f;
+				jdata_f = [];
+				for (var i = 0; i < temp.length; i++) {
+					if ((temp[i][attr] == val)) {
+						jdata_f[num] = temp[i];
+						//console.log(jdata_f[num]);
+						num += 1;
+					}
+				}
+
+				// generate unique years,topics, etc out of filtered jdata_f
+				years = [];
+				topics = [];
+				sectors = [];
+				regions = [];
+				pestles = [];
+				countries = [];
+				sources = [];
+				if (jdata_f.length != 0) {
+					for (var i = 0; i < jdata_f.length; i++) {
+						topic = jdata_f[i]["topic"];
+						check_and_add_to_unique_list(topic, topics);
+
+						sector = jdata_f[i]["sector"];
+						check_and_add_to_unique_list(sector, sectors);
+
+						region = jdata_f[i]["region"];
+						check_and_add_to_unique_list(region, regions);
+
+						pestle = jdata_f[i]["pestle"];
+						check_and_add_to_unique_list(pestle, pestles);
+
+						source = jdata_f[i]["source"];
+						check_and_add_to_unique_list(source, sources);
+
+						country = jdata_f[i]["country"];
+						check_and_add_to_unique_list(country, countries);
+
+						num = get_year(jdata_f[i]);
+						check_and_add_to_unique_list(num, years);
+						jdata_f[i]["year"] = num;
+					}
+				}
+			}
+		}
+		function find_id(id) {
+			console.log(id);
+			for (var i = 0; i < jdata.length; i++) {
+				if (jdata[i]._id == id) {
+					console.log("Found at " + i);
+					return i;
+				}
+			}
+			return -1;
+		}
+
+		function checkval(id) {
+			i = find_id(gserial);
+			if (i != -1) {
+				console.log("relevance=" + jdata[i].relevance);
+				console.log("likelihood=" + jdata[i].likelihood);
+				console.log("intensity=" + jdata[i].intensity);
+				//my_d3_plot(i);
+			}
+			else
+				console.log("Cannot find give serial id in data");
+		}
+
+		function my_d3_plot(index) {
+			var legends = ["RELEVANCE", "LIKELIHOOD", "INTENSITY"];
+			var colors = ['blue', 'red', 'cyan'];
+			var rectWidth = 100 //The width of the bar in a bar graph
+			var height = 200;
+			var spacing = 5; // Spacing between each bar
+
+			data1 = [];
+
+			if (isFinite(data[0])) {
+				data1[0] = data[0] * 200 / 10;
+				d3.select('rect.r1') // selects rect tags of class r1
+					.attr('x', (spacing + (0 * (rectWidth + spacing)))) // function is set the x coordinate of each bar, index*width of bar
+					.attr('y', (height - data1[0])) // d is the bound data
+					.attr('width', rectWidth)
+					.attr('height', data1[0])
+					.attr('fill', colors[0])
+					.attr('stroke', '#fff');
+			}
+
+			if (isFinite(data[1])) {
+				data1[1] = data[1] * 200 / 10;
+				d3.select('rect.r2') // selects rect tags of class r1
+					.attr('x', (spacing + (1 * (rectWidth + spacing)))) // function is set the x coordinate of each bar, index*width of bar
+					.attr('y', (height - data1[1])) // d is the bound data
+					.attr('width', rectWidth)
+					.attr('height', data1[1])
+					.attr('fill', colors[1])
+					.attr('stroke', '#fff');
+			}
+
+			var radii = [50 + 2, 0];
+			radii[1] = data[2] / 2;
+
+			var ccolors = ['lightgray', 'red'];
+			d3.selectAll('circle')
+				.attr('fill', (d, i) => (ccolors[i]))
+				.attr('r', (d, i) => (radii[i]));
+
+			d3.selectAll('text.lg')
+				.text((d, i) => legends[i]);
+
+			d3.selectAll('text.val')
+				.text((d, i) => data[i])
+				.attr('y', function (d, i) {
+					if (i != 2) return (170 - (data[i] * 20)); else
+						return 170;
+				});
+
+			var pc = [0, 0, 0];
+			pc[0] = data[0] * 100 / 10;
+			pc[1] = data[1] * 100 / 10;
+			pc[2] = data[2];
+
+			d3.selectAll('text.pc')
+				.text((d, i) => (pc[i] + " %"))
+				.attr('y', function (d, i) {
+					if (i != 2) return (190 - (data[i] * 20)); else
+						return 190;
+				});
+
+			display_item("year", gyear);
+			display_item("topic", gtopic);
+			display_item("sector", gsector);
+			display_item("region", gregion);
+			display_item("pestle", gpestle);
+			display_item("source", gsource);
+			display_item("swot", gswot);
+			display_item("country", gcountry);
+			display_item("city", gcity);
+			display_item("serial", gserial);
+
+		} // my_d3_plot()
+
+		window.onload = function () {
+			/*
+			i=find_id(gserial);
+			if(i != -1)
+			my_d3_plot(i);
+			*/
+		}
+
+
+		function compare(a, b) {
+			return a - b;
+		}
+
+
+		function notFoundN(n, arr) {
+			for (var key in arr) {
+				if ((typeof (n) == "string") && (typeof (arr[key]) == "string")) {
+					if (arr[key].toUpperCase() == n.toUpperCase())
+						return false;
+				}
+				else {
+					if (arr[key] == n)
+						return false;
+				}
+			}
+			return true;
+		}
+
+		function get_year(data_el) {
+			ncomma = data_el["published"].search(',');
+			num = Number(data_el["published"].substring(ncomma + 5, ncomma + 9))
+			if (isFinite(num)) {
+				if (num == 0) {
+					ncomma = data_el["added"].search(',');
+					num = Number(data_el["added"].substring(ncomma + 5, ncomma + 9));
+					return num;
+				}
+			}
+			return num;
+		}
+
+
+		function addUniqueOptions(arr, el_id) {
+			if (typeof (arr[0]) == 'number')
+				arr = arr.sort(compare);
+			else
+				arr = arr.sort();
+			for (key in arr) {
+				var opt = document.createElement('option');
+				opt.textContent = arr[key];
+				document.getElementById(el_id).appendChild(opt);
+			}
+		}
+
+		/*
+			checks if an item is not already present in the list
+			and if not then adds it.
+		*/
+
+
+		function check_and_add_to_unique_list(item, list) {
+			if (item.length != 0) {
+				if (notFoundN(item, list)) {
+					list[list.length] = item;
+				}
+				//console.log(topic);
+			}
+		}
+		d3.json("http://localhost:5000/fetchdata", function (error, jdata) {
+
+			window.jdata = jdata;
+			// console.log(jdata);
+			years = [];
+			var ny = 0;
+
+
+			topics = [];
+			sectors = [];
+			regions = [];
+			pestles = [];
+			sources = [];
+			countries = [];
+			serials = [];
+
+			intensities = [];
+			likelihoods = [];
+			relevances = [];
+
+			var ns = 0;
+
+			for (var i = 0; i < jdata.length; i++) {
+				intensities[i] = jdata[i].intensity;
+				likelihoods[i] = jdata[i].likelihood;
+				relevances[i] = jdata[i].relevance;
+
+				num = get_year(jdata[i]);
+				/*if(notFoundN(num, years))
+				{
+					years[ny]=num;
+					ny +=1;
+				}*/
+				check_and_add_to_unique_list(num, years);
+				jdata[i]["year"] = num;
+				//ncomma=jdata[i]["published"].search(',');
+				//num=Number(jdata[i]["published"].substring(ncomma+5,ncomma+9))
+
+				topic = jdata[i]["topic"];
+				check_and_add_to_unique_list(topic, topics);
+
+				sector = jdata[i]["sector"];
+				check_and_add_to_unique_list(sector, sectors);
+
+				region = jdata[i]["region"];
+				check_and_add_to_unique_list(region, regions);
+
+				pestle = jdata[i]["pestle"];
+				check_and_add_to_unique_list(pestle, pestles);
+
+				source = jdata[i]["source"];
+				check_and_add_to_unique_list(source, sources);
+
+				country = jdata[i]["country"];
+				check_and_add_to_unique_list(country, countries);
+
+
+
+
+
+			}
+
+			intensities = intensities.sort(compare);//max 96
+			likelihoods = likelihoods.sort(compare);// max 4
+			relevances = relevances.sort(compare);// max 7
+
+
+
+
+			select_item("year", gyear);
+			select_item("topic", gtopic);
+			select_item("sector", gsector);
+			select_item("region", gregion);
+			select_item("pestle", gpestle);
+			select_item("source", gsource);
+			select_item("swot", gswot);
+			select_item("country", gcountry);
+			select_item("city", gcity);
+			select_item("serial", gserial);
+
+			jdata_f = jdata;
+
+
+			apply_filter(gyear, "year");
+			apply_filter(gtopic, "topic");
+			apply_filter(gsector, "sector");
+			apply_filter(gpestle, "pestle");
+			apply_filter(gregion, "region");
+			apply_filter(gcountry, "country");
+			apply_filter(gsource, "source");
+
+			//years=years.sort(compare);
+			addUniqueOptions(years, "year_id");
+
+			//topics=topics.sort();
+			addUniqueOptions(topics, "topic_id");
+
+			//sectors=sectors.sort();
+			addUniqueOptions(sectors, "sector_id");
+
+			//regions=regions.sort();
+			addUniqueOptions(regions, "region_id");
+
+			//pestles=pestles.sort();
+			addUniqueOptions(pestles, "pestle_id");
+
+			//sources=sources.sort();
+			addUniqueOptions(sources, "source_id");
+
+			//countries=countries.sort();
+			addUniqueOptions(countries, "country_id");
+			//console.log("numyears unique="+years.length);
+			var i = 0;
+			for (; i < jdata_f.length; i++) {
+				serials[i] = jdata_f[i]["_id"];
+			}
+			window.document.getElementById("serial_id").innerText;
+			addUniqueOptions(serials, "serial_id");
+			console.log(serials);
+			gserial = serials[0];
+			if (gserial != 0) {
+				i = find_id(gserial);
+				if (i != -1) {
+					data[0] = jdata[i].relevance;
+					data[1] = jdata[i].likelihood;
+					data[2] = jdata[i].intensity;
+					my_d3_plot(i);
+				}
+				else
+					console.log("Cannot find give serial id in data");
+			}
+
+
+		});
+
+
+	</script>
+    <center>
+	<table>
+		<tr>
+			<td width=230>
+				<p4>Select the parameters</p4>
+			</td>
+			<td width=200>
+				<form id='f1' action="http://localhost:5000" method="POST">
+					<input type="submit" value="RESET">
+					<input type="hidden" name="param" value="param_reset" />
+				</form>
+			</td>
+			<td width=220>
+				<p4 id="items_id">ITEMS : 1000</p4>
+			</td>
+			<td>
+				<p4> Datavisualization Dashboard V 1.4</p4>
+			</td>
+		</tr>
+	</table>
+	</center>
+</head>
+
+<body>
+
+	<center>
+	<section>
+		<table bgcolor="orange" width=900>
+			<tr>
+				<td width=300>
+					<form id='f2' method="post">
+						<nav>
+							<ul>
+								<li><a onmouseover="javascript:myfunc('serial_id');">Serial #</a></li>
+								<myt id="serial_val" style="top:15px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:15px; left:100px;" id="serial_id" name="serial"
+									onchange="myfunc3();" hidden=false>
+									<option style="text-align:center">*</option>
+								</select>
+
+								<br />
+								<li><a onmouseover="javascript:myfunc('year_id');">Year</a></li>
+								<myt id="year_val" style="top:60px; left:100px;" class="VAL"></myt>
+								<select style="top:60px; left:100px;" class="SEL" id="year_id" name="year"
+									onchange="myfunc2('year_id');" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('topic_id');">Topic</a></li>
+								<myt id="topic_val" style="top:105px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:105px; left:100px;" id="topic_id" name="topic"
+									onchange="myfunc2('topic_id');" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('sector_id');">Sector</a></li>
+								<myt id="sector_val" style="top:150px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:150px; left:100px;" id="sector_id" name="sector"
+									onchange="myfunc2('sector_id');" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('pestle_id');">PEST</a></li>
+								<myt id="pestle_val" style="top:195px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:195px; left:100px;" id="pestle_id" name="pestle"
+									onchange="myfunc2('pestle_id');" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('region_id');">Region</a></li>
+								<myt id="region_val" style="top:240px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:240px; left:100px;" id="region_id" name="region"
+									onchange="myfunc2('region_id');" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('country_id');">Country</a></li>
+								<myt id="country_val" style="top:285px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:285px; left:100px;" id="country_id" name="country"
+									onchange="myfunc2('country_id');" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('city_id');">City</a></li>
+								<myt id="city_val" style="top:330px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:330px; left:100px;" id="city_id" name="city"
+									onchange="myfunc2('city_id');" hidden=true>
+								</select>
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('swot_id');">SWOT</a></li>
+								<myt id="swot_val" style="top:375px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:375px; left:100px;" id="swot_id" name="swot"
+									onchange="myfunc2('swot_id');" hidden=true>
+									<option style="text-align:center">*</option>
+									<option>Strength</option>
+									<option>Weakness</option>
+									<option>Opportunity</option>
+									<option>Threat</option>
+								</select>
+
+								<br />
+
+								<li><a onmouseover="javascript:myfunc('source_id');">Source</a></li>
+								<myt id="source_val" style="top:420px; left:100px;" class="VAL"></myt>
+								<select class="SEL" style="top:420px; left:100px;" id="source_id" name="source"
+									onchange="" hidden=true>
+									<option style="text-align:center">*</option>
+								</select>
+
+
+
+
+
+
+							</ul>
+						</nav>
+					</form>
+				</td>
+				<td bgcolor="white" align="center" onmouseover="hide_selections();">
+
+
+					<svg style="width:400px;height:300px;">
+						<rect class="r1" />
+						<rect class="r2" /> // Three Rectangle Elements
+						<rect x="2" y="2" width="215" height="200" stroke="black" stroke-width="3" fill="none" />
+
+
+						<circle cx="300" cy="70"  style="fill:yellow;"/>
+						<circle cx="300" cy="70" />
+
+						<text class="lg" x="7" y="220" font-weight="Bold" font-family="Arial"></text>
+						<text class="lg" x="115" y="220" font-weight="Bold" font-family="Arial"></text>
+						<text class="lg" x="260" y="150" font-weight="Bold" font-family="Arial"></text>
+
+						<text class="val" x="37" y="170" font-weight="Bold" font-family="Arial"></text>
+						<text class="val" x="140" y="170" font-weight="Bold" font-family="Arial"></text>
+						<text class="val" x="290" y="170" font-weight="Bold" font-family="Arial"></text>
+
+						<text class="pc" x="32" y="190" font-weight="Bold" font-family="Arial"></text>
+						<text class="pc" x="135" y="190" font-weight="Bold" font-family="Arial"></text>
+						<text class="pc" x="285" y="190" font-weight="Bold" font-family="Arial"></text>
+
+					</svg>
+				</td>
+			</tr>
+		</table>
+	</section>
+	</center>
+
+
+
+	<!-- Analytics -->
+
+</body>
+
+</html>
