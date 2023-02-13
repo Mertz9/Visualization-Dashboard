@@ -1,2 +1,2 @@
 # Visualization-Dashboard
-Using d3.js , Monbodb and React with json data
+Using d3.js , Monbodb and React with Data was fetched from json sheet.
